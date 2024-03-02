@@ -2,6 +2,7 @@ import PIL
 import requests
 import torch
 import argparse
+import os
 from io import BytesIO
 from diffusers import StableDiffusionDiffEditPipeline, DDIMScheduler, DDIMInverseScheduler
 from transformers import BlipForConditionalGeneration, BlipProcessor, AutoTokenizer, T5ForConditionalGeneration
@@ -24,7 +25,7 @@ def generate_caption(images, caption_generator, caption_processor):
     caption = caption_processor.batch_decode(outputs, skip_special_tokens=True)[0]
     return caption
 
-def edit(img_url, target_prompt, source_prompt):
+def edit(img_url, target_prompt, source_prompt, save_path):
     init_image = download_image(img_url).resize((768, 768))
 
     pipe = StableDiffusionDiffEditPipeline.from_pretrained(
@@ -47,14 +48,21 @@ def edit(img_url, target_prompt, source_prompt):
     image_latents = pipe.invert(image=init_image, prompt=caption).latents
     image = pipe(prompt=target_prompt, mask_image=mask_image, image_latents=image_latents).images[0]
 
+
     image.show()
+    if save_path is not None:
+        #check if the path is valid
+        if not os.path.exists(os.path.dirname(save_path)):
+            os.makedirs(os.path.dirname(save_path))
+        image.save(save_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Stable Diffusion Diff Edit with command line arguments.")
     parser.add_argument("--img_url", '-i', type=str, required=True, help="URL of the image to edit.")
     parser.add_argument("--target_prompt", '-t', type=str, required=True, help="Prompt for the target image.")
-    parser.add_argument("--source_prompt", '-s', type=str, default=None, help="Optional prompt for the source image.")
+    parser.add_argument("--source_prompt", '-p', type=str, default=None, help="Optional prompt for the source image.")
+    parser.add_argument("--save_path", '-s', type=str, default=None, help="Optional path to save the edited image.")
     
     args = parser.parse_args()
     
-    edit(args.img_url, args.target_prompt, args.source_prompt)
+    edit(args.img_url, args.target_prompt, args.source_prompt, args.save_path)
