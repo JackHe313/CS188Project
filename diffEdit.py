@@ -30,9 +30,7 @@ def generate_caption(images, caption_generator, caption_processor):
     caption = caption_processor.batch_decode(outputs, skip_special_tokens=True)[0]
     return caption
 
-def return_mask(img_url, target_prompt, source_prompt):
-    init_image = download_image(img_url).resize((768, 768))
-
+def return_mask(init_img, target_prompt, source_prompt):
     pipe = StableDiffusionDiffEditPipeline.from_pretrained(
         "stabilityai/stable-diffusion-2-1", torch_dtype=torch.float16
     )
@@ -72,9 +70,11 @@ if __name__ == "__main__":
     
     MAX_GENRATION_ITERATION = 128
     count = 0
+    init_img = download_image(FLAGS.img_url).resize((768, 768))
 
     while (count < MAX_GENRATION_ITERATION):
-        mask_image, init_image, caption, pipe = return_mask(FLAGS.img_url, FLAGS.target_prompt, FLAGS.source_prompt)
+        
+        mask_image, init_image, caption, pipe = return_mask(init_img, FLAGS.target_prompt, FLAGS.source_prompt)
         #convert numpy array to PIL image
         mask = mask_image * 255
         mask = mask.astype(int)
@@ -95,6 +95,7 @@ if __name__ == "__main__":
 
 
     while (count < MAX_GENRATION_ITERATION):    
+        print('Are you satisfied with the result?')
         edit(FLAGS.target_prompt, mask_image, init_image, caption, pipe, FLAGS.save_path)
         satisfied = input()
         if (satisfied == 'y'):
