@@ -4,7 +4,7 @@ beautifulsoup4==4.12.3
 certifi==2024.2.2
 charset-normalizer==3.3.2
 comm
-contourpy==1.2.0
+contourpy
 cycler==0.12.1
 debugpy
 decorator
@@ -31,8 +31,8 @@ matplotlib==3.8.2
 matplotlib-inline
 mpmath==1.3.0
 nest_asyncio
-networkx==3.2.1
-numpy==1.26.4
+networkx
+numpy
 # nvidia-cublas-cu12==12.1.3.1
 # nvidia-cuda-cupti-cu12==12.1.105
 # nvidia-cuda-nvrtc-cu12==12.1.105
@@ -45,43 +45,43 @@ numpy==1.26.4
 # nvidia-nccl-cu12==2.19.3
 # nvidia-nvjitlink-cu12==12.3.101
 # nvidia-nvtx-cu12==12.1.105
-opencv-python==4.9.0.80
+opencv-python
 packaging
 parso
 pexpect
 pickleshare
-pillow==10.2.0
+pillow
 platformdirs
 prompt-toolkit
 psutil
 ptyprocess
 pure-eval
 Pygments
-pyparsing==3.1.1
-PySocks==1.7.1
+pyparsing
+PySocks
 python-dateutil
-PyYAML==6.0.1
+PyYAML
 pyzmq
-regex==2023.12.25
-requests==2.31.0
-safetensors==0.4.2
+regex
+requests
+safetensors
 segment_anything @ git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588
-setuptools==69.0.3
+setuptools
 six
-soupsieve==2.5
+soupsieve
 stack-data
-sympy==1.12
-tokenizers==0.15.2
-torch==2.2.0
-torchaudio==2.2.0
-torchvision==0.17.0
+sympy
+tokenizers
+torch
+torchaudio
+torchvision
 tornado
-tqdm==4.66.2
+tqdm
 traitlets
-transformers==4.38.2
+transformers
 #triton==2.2.0
 typing_extensions
-urllib3==2.2.0
+urllib3
 wcwidth
-wheel==0.42.0
+wheel
 zipp

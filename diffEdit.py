@@ -67,6 +67,16 @@ if __name__ == "__main__":
     MAX_GENRATION_ITERATION = 128
     count = 0
 
-    #while (count < MAX_GENRATION_ITERATION):
-
-    edit(FLAGS.img_url, FLAGS.target_prompt, FLAGS.source_prompt, FLAGS.save_path)
+    while (count < MAX_GENRATION_ITERATION):
+        print('ARe you satisfied with the image?')
+        print('If yes, type "y"')
+        print('If no, type "n"')
+        satisfied = input()
+        if (satisfied == 'y'):
+            break
+        elif (satisfied == 'n'):
+            edit(FLAGS.img_url, FLAGS.target_prompt, FLAGS.source_prompt, FLAGS.save_path)
+            count += 1
+        else:
+            print('Invalid input, please try again')
+            continue
