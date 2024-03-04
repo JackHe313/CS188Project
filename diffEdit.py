@@ -77,6 +77,7 @@ def edit(target_prompt, mask_image, init_image, caption, pipe,save_path):
 
 if __name__ == "__main__":
     
+    init_image = download_image(FLAGS.img_url)
     
     MAX_GENRATION_ITERATION = 128
     count = 0
@@ -84,18 +85,21 @@ if __name__ == "__main__":
     while (count < MAX_GENRATION_ITERATION):
         
         mask_image, caption, pipe = return_mask(init_image, FLAGS.target_prompt, FLAGS.source_prompt)
-        
+        edit(FLAGS.target_prompt, mask_image, init_image, caption, pipe, FLAGS.save_path)
+        edit_image = init_image
+        edit_mask = mask_image
         init_image = np.array(init_image)
+        mask_image = np.array(mask_image, dtype='uint8').squeeze()
         mask = cv2.resize(mask_image, (init_image.shape[1], init_image.shape[0]))
+        print('Mask shape:', mask_image.shape)
 
         # Create a red color mask
         colored_mask = np.zeros_like(init_image)
-        colored_mask[mask > 0] = [0, 0, 255]  # BGR format, so red is [0, 0, 255]
-
+        colored_mask[mask > 0] = [255, 0, 0]  
         # Create semi-transparent background (dimming effect)
         background = np.zeros_like(init_image, dtype=np.uint8)
         background[:] = [0, 0, 0]  # Black background
-        alpha = 0.5  # Transparency for the non-masked area
+        alpha = 0.7  # Transparency for the non-masked area
         semi_transparent_bg = cv2.addWeighted(init_image, alpha, background, 1 - alpha, 0)
 
         # Overlay the red mask on the semi-transparent background
@@ -125,8 +129,9 @@ if __name__ == "__main__":
 
 
     while (count < MAX_GENRATION_ITERATION):    
+        edit(FLAGS.target_prompt, edit_mask, edit_image, caption, pipe, FLAGS.save_path)
         print('Are you satisfied with the result?')
-        edit(FLAGS.target_prompt, mask_image, init_image, caption, pipe, FLAGS.save_path)
+        print(edit_mask, edit_image, caption)
         satisfied = input()
         if (satisfied == 'y'): 
             break
