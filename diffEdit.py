@@ -1,8 +1,11 @@
 import PIL
+from PIL import Image
 import requests
 import torch
 from config import FLAGS
 import os
+import cv2
+import numpy as np
 from io import BytesIO
 from diffusers import StableDiffusionDiffEditPipeline, DDIMScheduler, DDIMInverseScheduler
 from transformers import BlipForConditionalGeneration, BlipProcessor, AutoTokenizer, T5ForConditionalGeneration
@@ -30,7 +33,7 @@ def generate_caption(images, caption_generator, caption_processor):
     caption = caption_processor.batch_decode(outputs, skip_special_tokens=True)[0]
     return caption
 
-def return_mask(init_img, target_prompt, source_prompt):
+def return_mask(init_image, target_prompt, source_prompt):
     pipe = StableDiffusionDiffEditPipeline.from_pretrained(
         "stabilityai/stable-diffusion-2-1", torch_dtype=torch.float16
     )
@@ -48,7 +51,7 @@ def return_mask(init_img, target_prompt, source_prompt):
         caption = generate_caption(init_image, model, processor)
     print(f"Caption: {caption}")
     mask_image = pipe.generate_mask(image=init_image, source_prompt=caption, target_prompt=target_prompt)
-    return mask_image, init_image, caption, pipe
+    return mask_image, caption, pipe
 
 
 def edit(target_prompt, mask_image, init_image, caption, pipe,save_path):
@@ -70,17 +73,37 @@ if __name__ == "__main__":
     
     MAX_GENRATION_ITERATION = 128
     count = 0
-    init_img = download_image(FLAGS.img_url).resize((768, 768))
+    init_image = download_image(FLAGS.img_url).resize((768, 768))
 
     while (count < MAX_GENRATION_ITERATION):
         
-        mask_image, init_image, caption, pipe = return_mask(init_img, FLAGS.target_prompt, FLAGS.source_prompt)
-        #convert numpy array to PIL image
+        mask_image, caption, pipe = return_mask(init_image, FLAGS.target_prompt, FLAGS.source_prompt)
+        
+        init_image = np.array(init_image)
+        mask = cv2.resize(mask_image, (init_image.shape[1], init_image.shape[0]))
 
-        mask = PIL.Image.fromarray((mask_image.squeeze()*255).astype("uint8"), "L")
-        background = PIL.Image.new("RGB", init_image.size, (0, 0, 0))  # Create a black background the same size as the original image
-        background.paste(init_image, mask=mask)
-        background.show()
+        # Create a red color mask
+        colored_mask = np.zeros_like(init_image)
+        colored_mask[mask > 0] = [0, 0, 255]  # BGR format, so red is [0, 0, 255]
+
+        # Create semi-transparent background (dimming effect)
+        background = np.zeros_like(init_image, dtype=np.uint8)
+        background[:] = [0, 0, 0]  # Black background
+        alpha = 0.5  # Transparency for the non-masked area
+        semi_transparent_bg = cv2.addWeighted(init_image, alpha, background, 1 - alpha, 0)
+
+        # Overlay the red mask on the semi-transparent background
+        # Masked area will be red, and the rest will be semi-transparent
+        final_image = np.where(colored_mask > 0, colored_mask, semi_transparent_bg)
+
+        # Convert back to RGB if needed (OpenCV uses BGR)
+        final_image = cv2.cvtColor(final_image, cv2.COLOR_BGR2RGB)
+
+        # Show or save your final image
+        cv2.imshow('Final Image', final_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
         print('Is there any change you want to make to the mask?')
         print('If yes, type "y"')
         print('If no, type "n"')
