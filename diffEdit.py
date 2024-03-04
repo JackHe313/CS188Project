@@ -1,8 +1,11 @@
 import PIL
+from PIL import Image
 import requests
 import torch
 from config import FLAGS
 import os
+import cv2
+import numpy as np
 from io import BytesIO
 from diffusers import StableDiffusionDiffEditPipeline, DDIMScheduler, DDIMInverseScheduler,StableDiffusionPipeline, DPMSolverMultistepScheduler
 from transformers import BlipForConditionalGeneration, BlipProcessor, AutoTokenizer, T5ForConditionalGeneration
@@ -37,9 +40,7 @@ def generate_img(prompt):
     image = pipe(prompt).images[0]
     return image
 
-def edit(img_url, target_prompt, source_prompt, save_path):
-    init_image = download_image(img_url).resize((768, 768))
-
+def return_mask(init_image, target_prompt, source_prompt):
     pipe = StableDiffusionDiffEditPipeline.from_pretrained(
         "stabilityai/stable-diffusion-2-1", torch_dtype=torch.float16
     )
@@ -57,36 +58,85 @@ def edit(img_url, target_prompt, source_prompt, save_path):
         caption = generate_caption(init_image, model, processor)
     print(f"Caption: {caption}")
     mask_image = pipe.generate_mask(image=init_image, source_prompt=caption, target_prompt=target_prompt)
+    return mask_image, caption, pipe
+
+
+def edit(target_prompt, mask_image, init_image, caption, pipe,save_path):
+    
     image_latents = pipe.invert(image=init_image, prompt=caption).latents
     image = pipe(prompt=target_prompt, mask_image=mask_image, image_latents=image_latents).images[0]
-
+    #convert numpy array to PIL image
 
     image.show()
+    #wait key and close windows
+
     if save_path is not None:
         #check if the path is valid
         if not os.path.exists(os.path.dirname(save_path)):
             os.makedirs(os.path.dirname(save_path))
         image.save(save_path)
+    return image, mask_image
 
 if __name__ == "__main__":
     
+    init_image = download_image(FLAGS.img_url).resize((768, 768))
     
     MAX_GENRATION_ITERATION = 128
     count = 0
 
-    image = generate_img(FLAGS.target_prompt)
-    image.show()
-
     while (count < MAX_GENRATION_ITERATION):
-        print('ARe you satisfied with the image?')
+        
+        mask_image, caption, pipe = return_mask(init_image, FLAGS.target_prompt, FLAGS.source_prompt)
+        edit_image = init_image
+        edit_mask = mask_image
+        init_image = np.array(init_image)
+        mask_image = np.array(mask_image, dtype='uint8').squeeze()
+        mask = cv2.resize(mask_image, (init_image.shape[1], init_image.shape[0]))
+
+        # Create a red color mask
+        colored_mask = np.zeros_like(init_image)
+        colored_mask[mask > 0] = [255, 0, 0]  
+        # Create semi-transparent background (dimming effect)
+        background = np.zeros_like(init_image, dtype=np.uint8)
+        background[:] = [0, 0, 0]  # Black background
+        alpha = 0.7  # Transparency for the non-masked area
+        semi_transparent_bg = cv2.addWeighted(init_image, alpha, background, 1 - alpha, 0)
+
+        # Overlay the red mask on the semi-transparent background
+        # Masked area will be red, and the rest will be semi-transparent
+        final_image = np.where(colored_mask > 0, colored_mask, semi_transparent_bg)
+
+        # Convert back to RGB if needed (OpenCV uses BGR)
+        final_image = cv2.cvtColor(final_image, cv2.COLOR_BGR2RGB)
+
+        # Show or save your final image
+        cv2.imshow('Final Image', final_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        print('Is there any change you want to make to the mask?')
         print('If yes, type "y"')
         print('If no, type "n"')
+        change = input()
+        if (change == 'y'):
+            count += 1
+            continue
+        elif (change == 'n'):
+            break
+        else:
+            print('Invalid input, please try again')
+            break
+
+
+    while (count < MAX_GENRATION_ITERATION):    
+        edit(FLAGS.target_prompt, edit_mask, edit_image, caption, pipe, FLAGS.save_path)
+        print('Are you satisfied with the result?')
         satisfied = input()
         if (satisfied == 'y'): 
             break
         elif (satisfied == 'n'):
-            edit(FLAGS.img_url, FLAGS.target_prompt, FLAGS.source_prompt, FLAGS.save_path)
             count += 1
+            continue
         else:
             print('Invalid input, please try again')
-            continue
+            break
