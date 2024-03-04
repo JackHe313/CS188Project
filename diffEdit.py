@@ -1,7 +1,7 @@
 import PIL
 import requests
 import torch
-import argparse
+from config import FLAGS
 import os
 from io import BytesIO
 from diffusers import StableDiffusionDiffEditPipeline, DDIMScheduler, DDIMInverseScheduler
@@ -9,14 +9,19 @@ from transformers import BlipForConditionalGeneration, BlipProcessor, AutoTokeni
 
 def download_image(url):
     response = requests.get(url)
-    return PIL.Image.open(BytesIO(response.content)).convert("RGB")
+    try:
+        image = PIL.Image.open(BytesIO(response.content)).convert("RGB")
+    except:
+        image = PIL.Image.open(BytesIO(requests.get('https://as2.ftcdn.net/v2/jpg/02/25/32/07/1000_F_225320764_OBm2Xby6soDooECWQv25GTtRLzNaSL6g.jpg').content)).convert("RGB")
+        print ("Image has error, using default image")    
+    return image
 
 @torch.no_grad()
 def generate_caption(images, caption_generator, caption_processor):
     text = "a photograph of"
 
-    inputs = caption_processor(images, text, return_tensors="pt").to(device="cuda", dtype=caption_generator.dtype)
-    caption_generator.to("cuda")
+    inputs = caption_processor(images, text, return_tensors="pt").to(device=FLAGS.device, dtype=caption_generator.dtype)
+    caption_generator.to(FLAGS.device)
     outputs = caption_generator.generate(**inputs, max_new_tokens=128)
 
     # offload caption generator
@@ -31,7 +36,7 @@ def edit(img_url, target_prompt, source_prompt, save_path):
     pipe = StableDiffusionDiffEditPipeline.from_pretrained(
         "stabilityai/stable-diffusion-2-1", torch_dtype=torch.float16
     )
-    pipe = pipe.to("cuda")
+    pipe = pipe.to(FLAGS.device)
 
     pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
     pipe.inverse_scheduler = DDIMInverseScheduler.from_config(pipe.scheduler.config)
@@ -57,12 +62,11 @@ def edit(img_url, target_prompt, source_prompt, save_path):
         image.save(save_path)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Stable Diffusion Diff Edit with command line arguments.")
-    parser.add_argument("--img_url", '-i', type=str, required=True, help="URL of the image to edit.")
-    parser.add_argument("--target_prompt", '-t', type=str, required=True, help="Prompt for the target image.")
-    parser.add_argument("--source_prompt", '-p', type=str, default=None, help="Optional prompt for the source image.")
-    parser.add_argument("--save_path", '-s', type=str, default=None, help="Optional path to save the edited image.")
     
-    args = parser.parse_args()
     
-    edit(args.img_url, args.target_prompt, args.source_prompt, args.save_path)
+    MAX_GENRATION_ITERATION = 128
+    count = 0
+
+    #while (count < MAX_GENRATION_ITERATION):
+
+    edit(FLAGS.img_url, FLAGS.target_prompt, FLAGS.source_prompt, FLAGS.save_path)
