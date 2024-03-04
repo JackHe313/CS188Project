@@ -76,9 +76,7 @@ if __name__ == "__main__":
         
         mask_image, init_image, caption, pipe = return_mask(init_img, FLAGS.target_prompt, FLAGS.source_prompt)
         #convert numpy array to PIL image
-        mask = mask_image * 255
-        mask = mask.astype(int)
-        mask = PIL.Image.fromarray(mask)
+        mask = PIL.Image.fromarray((mask_image.squeeze()*255).astype("uint8"), "L")
         mask.show()
         print('Is there any change you want to make to the mask?')
         print('If yes, type "y"')
