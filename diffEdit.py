@@ -7,7 +7,7 @@ import os
 import cv2
 import numpy as np
 from io import BytesIO
-from diffusers import StableDiffusionDiffEditPipeline, DDIMScheduler, DDIMInverseScheduler
+from diffusers import StableDiffusionDiffEditPipeline, DDIMScheduler, DDIMInverseScheduler,StableDiffusionPipeline, DPMSolverMultistepScheduler
 from transformers import BlipForConditionalGeneration, BlipProcessor, AutoTokenizer, T5ForConditionalGeneration
 
 def download_image(url):
@@ -32,6 +32,13 @@ def generate_caption(images, caption_generator, caption_processor):
 
     caption = caption_processor.batch_decode(outputs, skip_special_tokens=True)[0]
     return caption
+
+def generate_img(prompt):
+    pipe = StableDiffusionPipeline.from_pretrained("stabilityai/stable-diffusion-2-1", torch_dtype=torch.float16)
+    pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
+    pipe = pipe.to("cuda")
+    image = pipe(prompt).images[0]
+    return image
 
 def return_mask(init_image, target_prompt, source_prompt):
     pipe = StableDiffusionDiffEditPipeline.from_pretrained(
@@ -73,7 +80,6 @@ if __name__ == "__main__":
     
     MAX_GENRATION_ITERATION = 128
     count = 0
-    init_image = download_image(FLAGS.img_url).resize((768, 768))
 
     while (count < MAX_GENRATION_ITERATION):
         
@@ -122,7 +128,7 @@ if __name__ == "__main__":
         print('Are you satisfied with the result?')
         edit(FLAGS.target_prompt, mask_image, init_image, caption, pipe, FLAGS.save_path)
         satisfied = input()
-        if (satisfied == 'y'):
+        if (satisfied == 'y'): 
             break
         elif (satisfied == 'n'):
             count += 1
