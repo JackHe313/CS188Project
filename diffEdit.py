@@ -76,8 +76,11 @@ if __name__ == "__main__":
         
         mask_image, init_image, caption, pipe = return_mask(init_img, FLAGS.target_prompt, FLAGS.source_prompt)
         #convert numpy array to PIL image
+
         mask = PIL.Image.fromarray((mask_image.squeeze()*255).astype("uint8"), "L")
-        mask.show()
+        background = PIL.Image.new("RGB", init_image.size, (0, 0, 0))  # Create a black background the same size as the original image
+        background.paste(init_image, mask=mask)
+        background.show()
         print('Is there any change you want to make to the mask?')
         print('If yes, type "y"')
         print('If no, type "n"')
