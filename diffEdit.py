@@ -79,10 +79,17 @@ def edit(target_prompt, mask_image, init_image, caption, pipe,save_path):
 
 if __name__ == "__main__":
     
-    init_image = download_image(FLAGS.img_url).resize((768, 768))
+    
     
     MAX_GENRATION_ITERATION = 128
     count = 0
+
+    if FLAGS.source_prompt is None and FLAGS.img_url == '':
+        raise ValueError('Please provide an image URL or a source prompt')
+    if FLAGS.img_url == '':
+        init_image = generate_img(FLAGS.source_prompt).resize((768, 768))
+    elif FLAGS.img_url != '':
+        init_image = download_image(FLAGS.img_url).resize((768, 768))
 
     while (count < MAX_GENRATION_ITERATION):
         
