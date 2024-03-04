@@ -30,7 +30,7 @@ def generate_caption(images, caption_generator, caption_processor):
     caption = caption_processor.batch_decode(outputs, skip_special_tokens=True)[0]
     return caption
 
-def edit(img_url, target_prompt, source_prompt, save_path):
+def return_mask(img_url, target_prompt, source_prompt):
     init_image = download_image(img_url).resize((768, 768))
 
     pipe = StableDiffusionDiffEditPipeline.from_pretrained(
@@ -50,9 +50,14 @@ def edit(img_url, target_prompt, source_prompt, save_path):
         caption = generate_caption(init_image, model, processor)
     print(f"Caption: {caption}")
     mask_image = pipe.generate_mask(image=init_image, source_prompt=caption, target_prompt=target_prompt)
+    return mask_image, init_image, caption, pipe
+
+
+def edit(target_prompt, mask_image, init_image, caption, pipe,save_path):
+    
     image_latents = pipe.invert(image=init_image, prompt=caption).latents
     image = pipe(prompt=target_prompt, mask_image=mask_image, image_latents=image_latents).images[0]
-
+    #convert numpy array to PIL image
 
     image.show()
     if save_path is not None:
@@ -60,6 +65,7 @@ def edit(img_url, target_prompt, source_prompt, save_path):
         if not os.path.exists(os.path.dirname(save_path)):
             os.makedirs(os.path.dirname(save_path))
         image.save(save_path)
+    return image, mask_image
 
 if __name__ == "__main__":
     
@@ -68,15 +74,34 @@ if __name__ == "__main__":
     count = 0
 
     while (count < MAX_GENRATION_ITERATION):
-        print('ARe you satisfied with the image?')
+        mask_image, init_image, caption, pipe = return_mask(FLAGS.img_url, FLAGS.target_prompt, FLAGS.source_prompt)
+        #convert numpy array to PIL image
+        mask = mask_image * 255
+        mask = mask.astype(int)
+        mask = PIL.Image.fromarray(mask)
+        mask.show()
+        print('Is there any change you want to make to the mask?')
         print('If yes, type "y"')
         print('If no, type "n"')
+        change = input()
+        if (change == 'y'):
+            count += 1
+            continue
+        elif (change == 'n'):
+            break
+        else:
+            print('Invalid input, please try again')
+            break
+
+
+    while (count < MAX_GENRATION_ITERATION):    
+        edit(FLAGS.target_prompt, mask_image, init_image, caption, pipe, FLAGS.save_path)
         satisfied = input()
         if (satisfied == 'y'):
             break
         elif (satisfied == 'n'):
-            edit(FLAGS.img_url, FLAGS.target_prompt, FLAGS.source_prompt, FLAGS.save_path)
             count += 1
+            continue
         else:
             print('Invalid input, please try again')
-            continue
+            break
