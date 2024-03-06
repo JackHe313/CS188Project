@@ -83,19 +83,29 @@ if __name__ == "__main__":
     
     MAX_GENRATION_ITERATION = 128
     count = 0
+    target_prompt = FLAGS.target_prompt
 
     if FLAGS.source_prompt is None and FLAGS.img_url == '':
         raise ValueError('Please provide an image URL or a source prompt')
     if FLAGS.img_url == '':
         print('Generating image from source prompt')
         init_image = generate_img(FLAGS.source_prompt).resize((768, 768))
+        init_image.show()
+        print('Are you satisfied with the generated image? (y/n)')
+        satisfied = input()
+        if (satisfied == 'y'):
+            exit()
+        elif (satisfied == 'n'):
+            print('Please enter the prompt for the image you want to modify')
+            target_prompt = input()
     elif FLAGS.img_url != '':
         init_image = download_image(FLAGS.img_url).resize((768, 768))
+
     original_image = init_image
 
     while (count < MAX_GENRATION_ITERATION):
         
-        mask_image, caption, pipe = return_mask(original_image, FLAGS.target_prompt, FLAGS.source_prompt)
+        mask_image, caption, pipe = return_mask(original_image, target_prompt, FLAGS.source_prompt)
         edit_mask = mask_image
         init_image = np.array(init_image)
         mask_image = np.array(mask_image, dtype='uint8').squeeze()
@@ -137,7 +147,7 @@ if __name__ == "__main__":
 
 
     while (count < MAX_GENRATION_ITERATION):    
-        edit(FLAGS.target_prompt, edit_mask, original_image, caption, pipe, FLAGS.save_path)
+        edit(target_prompt, edit_mask, original_image, caption, pipe, FLAGS.save_path)
         print('Are you satisfied with the result (y/n)?')
         satisfied = input()
         if (satisfied == 'y'): 
