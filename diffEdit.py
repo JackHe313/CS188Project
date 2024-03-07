@@ -60,6 +60,32 @@ def return_mask(init_image, target_prompt, source_prompt):
     mask_image = pipe.generate_mask(image=init_image, source_prompt=caption, target_prompt=target_prompt)
     return mask_image, caption, pipe
 
+def segment_image(init_image, seg_prompt):
+    #seg_prompt = "the object to seg out"
+    pipe = StableDiffusionDiffEditPipeline.from_pretrained(
+        "stabilityai/stable-diffusion-2-1", torch_dtype=torch.float16
+    )
+    pipe = pipe.to(FLAGS.device)
+
+    pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
+    pipe.inverse_scheduler = DDIMInverseScheduler.from_config(pipe.scheduler.config)
+    pipe.enable_model_cpu_offload()
+    
+    processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+    model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base", torch_dtype=torch.float16, low_cpu_mem_usage=True)
+    caption = generate_caption(init_image, model, processor)
+    print(f"Caption: {caption}")
+    #remove seg from caption to form target_prompt
+    if seg_prompt in caption:
+        target_prompt = caption.replace(seg_prompt, "[NONE]")
+    else:
+        print("The object is not in the image")
+        return None
+
+    print(f"Caption: {caption}")
+    mask_image = pipe.generate_mask(image=init_image, source_prompt=caption, target_prompt=target_prompt)
+    return mask_image, caption, pipe
+
 
 def edit(target_prompt, mask_image, init_image, caption, pipe,save_path):
     
@@ -78,7 +104,8 @@ def edit(target_prompt, mask_image, init_image, caption, pipe,save_path):
     return image, mask_image
 
 if __name__ == "__main__":
-    
+    torch.manual_seed(FLAGS.seed)
+    np.random.seed(FLAGS.seed)
     
     
     MAX_GENRATION_ITERATION = 128
@@ -94,8 +121,10 @@ if __name__ == "__main__":
     original_image = init_image
 
     while (count < MAX_GENRATION_ITERATION):
-        
-        mask_image, caption, pipe = return_mask(original_image, FLAGS.target_prompt, FLAGS.source_prompt)
+        if FLAGS.seg_prompt is not None:
+            mask_image, caption, pipe = segment_image(init_image, FLAGS.seg_prompt)
+        else:
+            mask_image, caption, pipe = return_mask(original_image, FLAGS.target_prompt, FLAGS.source_prompt)
         edit_mask = mask_image
         init_image = np.array(init_image)
         mask_image = np.array(mask_image, dtype='uint8').squeeze()

@@ -4,7 +4,9 @@ parser = argparse.ArgumentParser(description="Run Stable Diffusion Diff Edit wit
 parser.add_argument("--img_url", '-i', type=str, default='', help="URL of the image to edit.")
 parser.add_argument("--target_prompt", '-t', type=str, required=True, help="Prompt for the target image.")
 parser.add_argument("--source_prompt", '-p', type=str, default=None, help="Optional prompt for the source image.")
-parser.add_argument("--save_path", '-s', type=str, default='./', help="Optional path to save the edited image.")
+parser.add_argument("--save_path", '-s', type=str, default=None, help="Optional path to save the edited image.")
 parser.add_argument("--device", '-d', type=str, default="cuda:0", help="Device to run the model on.")
+parser.add_argument("--seg_prompt", '-sp', type=str, default=None, help="Prompt for the object to segment out.")
+parser.add_argument("--seed", type=int, default=0, help="Seed for the random number generator.")
 args = parser.parse_args()
 FLAGS = args
