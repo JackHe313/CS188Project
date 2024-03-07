@@ -6,5 +6,6 @@ parser.add_argument("--target_prompt", '-t', type=str, required=True, help="Prom
 parser.add_argument("--source_prompt", '-p', type=str, default=None, help="Optional prompt for the source image.")
 parser.add_argument("--save_path", '-s', type=str, default='./', help="Optional path to save the edited image.")
 parser.add_argument("--device", '-d', type=str, default="cuda:0", help="Device to run the model on.")
+parser.add_argument("--seg_prompt", '-g', type=str, default=None, help="Prompt for the segment image.")
 args = parser.parse_args()
 FLAGS = args
