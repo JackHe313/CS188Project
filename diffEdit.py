@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 from io import BytesIO
 from diffusers import StableDiffusionDiffEditPipeline, DDIMScheduler, DDIMInverseScheduler,StableDiffusionPipeline, DPMSolverMultistepScheduler
-from transformers import BlipForConditionalGeneration, BlipProcessor, AutoTokenizer, T5ForConditionalGeneration
+from transformers import BlipForConditionalGeneration, BlipProcessor
 
 def download_image(url):
     response = requests.get(url)
@@ -21,7 +21,7 @@ def download_image(url):
 
 @torch.no_grad()
 def generate_caption(images, caption_generator, caption_processor):
-    text = "a photograph of"
+    text = "a photo of "
 
     inputs = caption_processor(images, text, return_tensors="pt").to(device=FLAGS.device, dtype=caption_generator.dtype)
     caption_generator.to(FLAGS.device)
@@ -60,7 +60,6 @@ def return_mask(init_image, target_prompt, source_prompt):
     mask_image = pipe.generate_mask(image=init_image, source_prompt=caption, target_prompt=target_prompt)
     return mask_image, caption, pipe
 
-
 def edit(target_prompt, mask_image, init_image, caption, pipe,save_path):
     
     image_latents = pipe.invert(image=init_image, prompt=caption).latents
@@ -77,9 +76,59 @@ def edit(target_prompt, mask_image, init_image, caption, pipe,save_path):
         image.save(save_path)
     return image, mask_image
 
+def segment_image(init_image, seg_prompt):
+    #seg_prompt = "the object to seg out"
+    pipe = StableDiffusionDiffEditPipeline.from_pretrained(
+        "stabilityai/stable-diffusion-2-1", torch_dtype=torch.float16
+    )
+    pipe = pipe.to(FLAGS.device)
+
+    pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
+    pipe.inverse_scheduler = DDIMInverseScheduler.from_config(pipe.scheduler.config)
+    pipe.enable_model_cpu_offload()\
+    
+    processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+    model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base", torch_dtype=torch.float16, low_cpu_mem_usage=True)
+    caption = generate_caption(init_image, model, processor)
+
+    #remove seg from caption to form target_prompt
+    if seg_prompt in caption:
+        target_prompt = caption.replace(seg_prompt, "[NONE]")
+    else:
+        print("The object is not in the image")
+        return None
+
+    print(f"Caption: {caption}")
+    mask_image = pipe.generate_mask(image=init_image, source_prompt=caption, target_prompt=target_prompt)
+    return mask_image
+
+def show_mask(mask_image, init_image):
+    init_image = np.array(init_image)
+    mask_image = np.array(mask_image, dtype='uint8').squeeze()
+    mask = cv2.resize(mask_image, (init_image.shape[1], init_image.shape[0]))
+
+    # Create a red color mask
+    colored_mask = np.zeros_like(init_image)
+    colored_mask[mask > 0] = [255, 0, 0]  
+    # Create semi-transparent background (dimming effect)
+    background = np.zeros_like(init_image, dtype=np.uint8)
+    background[:] = [0, 0, 0]  # Black background
+    alpha = 0.7  # Transparency for the non-masked area
+    semi_transparent_bg = cv2.addWeighted(init_image, alpha, background, 1 - alpha, 0)
+
+    # Overlay the red mask on the semi-transparent background
+    # Masked area will be red, and the rest will be semi-transparent
+    final_image = np.where(colored_mask > 0, colored_mask, semi_transparent_bg)
+
+    # Convert back to RGB if needed (OpenCV uses BGR)
+    final_image = cv2.cvtColor(final_image, cv2.COLOR_BGR2RGB)
+
+    # Show or save your final image
+    cv2.imshow('Final Image', final_image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
 if __name__ == "__main__":
-    
-    
     
     MAX_GENRATION_ITERATION = 128
     count = 0
@@ -91,36 +140,13 @@ if __name__ == "__main__":
         init_image = generate_img(FLAGS.source_prompt).resize((768, 768))
     elif FLAGS.img_url != '':
         init_image = download_image(FLAGS.img_url).resize((768, 768))
+
     original_image = init_image
 
     while (count < MAX_GENRATION_ITERATION):
         
         mask_image, caption, pipe = return_mask(original_image, FLAGS.target_prompt, FLAGS.source_prompt)
-        edit_mask = mask_image
-        init_image = np.array(init_image)
-        mask_image = np.array(mask_image, dtype='uint8').squeeze()
-        mask = cv2.resize(mask_image, (init_image.shape[1], init_image.shape[0]))
-
-        # Create a red color mask
-        colored_mask = np.zeros_like(init_image)
-        colored_mask[mask > 0] = [255, 0, 0]  
-        # Create semi-transparent background (dimming effect)
-        background = np.zeros_like(init_image, dtype=np.uint8)
-        background[:] = [0, 0, 0]  # Black background
-        alpha = 0.7  # Transparency for the non-masked area
-        semi_transparent_bg = cv2.addWeighted(init_image, alpha, background, 1 - alpha, 0)
-
-        # Overlay the red mask on the semi-transparent background
-        # Masked area will be red, and the rest will be semi-transparent
-        final_image = np.where(colored_mask > 0, colored_mask, semi_transparent_bg)
-
-        # Convert back to RGB if needed (OpenCV uses BGR)
-        final_image = cv2.cvtColor(final_image, cv2.COLOR_BGR2RGB)
-
-        # Show or save your final image
-        cv2.imshow('Final Image', final_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        show_mask(mask_image, init_image)
 
         print('Is there any change you want to make to the mask?')
         print('If yes, type "y"')
@@ -136,8 +162,9 @@ if __name__ == "__main__":
             break
 
 
-    while (count < MAX_GENRATION_ITERATION):    
-        edit(FLAGS.target_prompt, edit_mask, original_image, caption, pipe, FLAGS.save_path)
+    while (count < MAX_GENRATION_ITERATION): 
+
+        edit(FLAGS.target_prompt, mask_image, init_image, caption, pipe, FLAGS.save_path)
         print('Are you satisfied with the result (y/n)?')
         satisfied = input()
         if (satisfied == 'y'): 
