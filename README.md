@@ -15,7 +15,9 @@ Example
 ```
 python diffEdit.py -i "https://github.com/Xiang-cd/DiffEdit-stable-diffusion/raw/main/assets/origin.png" -t "a bowl of pears"
 ```
-In which case the program will generate the mask and ask about your satisfaction about it. When user accepts the mask, it will edit the image based on the target prompt.
+In which case the program will generate the mask and ask about your satisfaction about it. 
+![Mask]("img/mask.png")
+When user accepts the mask, it will edit the image based on the target prompt.
 
 #### User Generate Image Editing
 Example
