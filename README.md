@@ -18,8 +18,9 @@ python diffEdit.py -i "https://github.com/Xiang-cd/DiffEdit-stable-diffusion/raw
 In which case the program will generate the mask and ask about your satisfaction about it. 
 
 ![Mask](/img/mask.png)
-
+![Ask](/img/Ask&Res.png)
 When user accepts the mask, it will edit the image based on the target prompt.
+![Ask](/img/Ask&Res2.png)
 
 #### User Generate Image Editing
 Example
