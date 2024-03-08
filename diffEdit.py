@@ -74,7 +74,6 @@ def segment_image(init_image, seg_prompt):
     processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
     model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base", torch_dtype=torch.float16, low_cpu_mem_usage=True)
     caption = generate_caption(init_image, model, processor)
-    print(f"Caption: {caption}")
     #remove seg from caption to form target_prompt
     if seg_prompt in caption:
         target_prompt = caption.replace(seg_prompt, "[NONE]")
@@ -131,10 +130,10 @@ if __name__ == "__main__":
     original_image = init_image
 
     while (count < MAX_GENRATION_ITERATION):
-        if FLAGS.seg_prompt is not None:
-            mask_image, caption, pipe = segment_image(init_image, FLAGS.seg_prompt)
+        if FLAGS.seg_prompt == True:
+            mask_image, caption, pipe = segment_image(init_image, target_prompt)
         else:
-            mask_image, caption, pipe = return_mask(original_image, FLAGS.target_prompt, FLAGS.source_prompt)
+            mask_image, caption, pipe = return_mask(original_image, target_prompt, FLAGS.source_prompt)
         edit_mask = mask_image
         init_image = np.array(init_image)
         mask_image = np.array(mask_image, dtype='uint8').squeeze()
@@ -161,6 +160,9 @@ if __name__ == "__main__":
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
+        if FLAGS.seg_prompt == True:
+            break
+
         print('Is there any change you want to make to the mask?')
         print('If yes, type "y"')
         print('If no, type "n"')
@@ -174,16 +176,16 @@ if __name__ == "__main__":
             print('Invalid input, please try again')
             break
 
-
-    while (count < MAX_GENRATION_ITERATION):    
-        edit(target_prompt, edit_mask, original_image, caption, pipe, FLAGS.save_path)
-        print('Are you satisfied with the result (y/n)?')
-        satisfied = input()
-        if (satisfied == 'y'): 
-            break
-        elif (satisfied == 'n'):
-            count += 1
-            continue
-        else:
-            print('Invalid input, please try again')
-            break
+    if FLAGS.seg_prompt != True:
+        while (count < MAX_GENRATION_ITERATION):    
+            edit(target_prompt, edit_mask, original_image, caption, pipe, FLAGS.save_path)
+            print('Are you satisfied with the result (y/n)?')
+            satisfied = input()
+            if (satisfied == 'y'): 
+                break
+            elif (satisfied == 'n'):
+                count += 1
+                continue
+            else:
+                print('Invalid input, please try again')
+                break
